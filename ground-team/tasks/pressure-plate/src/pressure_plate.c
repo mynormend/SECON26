@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <unistd.h>
 
-#define SERVO_PIN_V 24
+#define SERVO_PIN_V 22
 #define SERVO_PIN_H 26
 #define SERVO_MIN 500
 #define SERVO_MID 1500
@@ -29,34 +29,29 @@ void move_servo(struct gpiod_line *line, int pulse_us) {
 	int cycles = (MOVE_TIME_MS * 1000) / PWM_PERIOD_US;
 
 	for (int i = 0; i < cycles; i++){
-		send_pulse(line, pulse_us);
+		set_servo_pulse(line, pulse_us);
 	}
 }
 
-status_t pressure_plate{
+status_t pressure_plate(void){
       struct gpiod_chip *chip;
-      struct gpiod_line *servo_line;
+      struct gpiod_line *s1;
+      struct gpiod_line *s2;
 
   chip = gpiod_chip_open_by_name("gpiochip0");
   if (!chip)
     return ERR_BUS_FAIL;
 
-  servo1_line = gpiod_chip_get_line(chip, SERVO_PIN_V);
-  if (!servo1_line) {
+  s1 = gpiod_chip_get_line(chip, SERVO_PIN_V);
+  s2 = gpiod_chip_get_line(chip, SERVO_PIN_H);
+
+  if (!s1 || !s2) {
     gpiod_chip_close(chip);
     return ERR_BUS_FAIL;
-  }
-  servo2_line = gpiod_chip_get_line(chip, SERVO_PIN_H);
-  if (!servo2_line) {
-	  gpiod_chip_close(chip);
-	  return ERR_BUS_FAIL;
   }
 
-  if (gpiod_line_request_output(servo1_line, "Vertical", 0) < 0) {
-    gpiod_chip_close(chip);
-    return ERR_BUS_FAIL;
-  }
-  if (gpiod_line_request_output(servo2_line, "Horizontal", 0) < 0) {
+  if (gpiod_line_request_output(s1, "Vertical", 0) < 0 || 
+      gpiod_line_request_output(s2, "Horizontal", 0) < 0) {
     gpiod_chip_close(chip);
     return ERR_BUS_FAIL;
   }
@@ -72,16 +67,16 @@ status_t pressure_plate{
    printf("Moving horizontal servo to the middle");
    move_servo(s2, 1500);
    printf("Move vertical servo back to perpendicular");
+   move_servo(s1, 1500);
 
-
-  gpiod_line_release(servo1_line);
-  gpiod_line_release(servo2_line);
+  gpiod_line_release(s1);
+  gpiod_line_release(s2);
   gpiod_chip_close(chip);
   return OK;
 }
 
 
-void main(void) {
+int main(void) {
     status_t result = pressure_plate();
 
     if(result != OK)
